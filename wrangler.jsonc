@@ -1,0 +1,11 @@
+{
+  "name": "claude-helper",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  // Public values only. The Anthropic key goes in as a secret in the Cloudflare dashboard.
+  "vars": {
+    "SHOPPING_SUPABASE_URL": "https://edtjssesaofdhwwndzod.supabase.co",
+    "SHOPPING_SUPABASE_KEY": "sb_publishable_udm8K67Oxedb4uG1Rt2U2A_d6hGGGu-"
+  }
+}
