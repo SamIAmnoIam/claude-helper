@@ -33,7 +33,8 @@ export default {
     if (!token) return reply(401, { error: "not_signed_in" });
     const sbUrl = env[`${app}_SUPABASE_URL`], sbKey = env[`${app}_SUPABASE_KEY`];
     const who = await fetch(`${sbUrl}/auth/v1/user`, { headers: { Authorization: `Bearer ${token}`, apikey: sbKey } });
-    if (!who.ok) return reply(401, { error: "not_signed_in" });
+    if (!who.ok) { console.error("Supabase sign-in check failed", who.status); return reply(401, { error: "not_signed_in" }); }
+    if (!env.ANTHROPIC_API_KEY) { console.error("ANTHROPIC_API_KEY secret is missing"); return reply(500, { error: "no_api_key" }); }
 
     // 2. Validate the request.
     let body;
@@ -50,7 +51,7 @@ export default {
       headers: { "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 4096,
+        max_tokens: 8192,
         system: "Reply with only the JSON requested. No preamble, no markdown fences.",
         messages: [{
           role: "user",
@@ -61,9 +62,16 @@ export default {
         }],
       }),
     });
-    if (r.status === 429) return reply(429, { error: "rate_limited" });
-    if (!r.ok) return reply(502, { error: "claude_error", status: r.status });
+    if (!r.ok) {
+      const detail = await r.text().catch(() => "");
+      console.error("Claude API error", r.status, detail.slice(0, 1000));
+      if (r.status === 429) return reply(429, { error: "rate_limited" });
+      let message = "";
+      try { message = JSON.parse(detail).error?.message || ""; } catch {}
+      return reply(502, { error: "claude_error", status: r.status, detail: message.slice(0, 300) });
+    }
     const data = await r.json();
+    console.log("Read OK", images.length, "image(s), stop:", data.stop_reason);
     const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
     return reply(200, { text });
   },
